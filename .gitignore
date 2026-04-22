@@ -1,1 +1,25 @@
-node_modules/\n__pycache__/\n.streamlit/\n*.xlsx\n*.zip\n*.docx\n*.shp\n*.shx\n*.dbf\n*.prj\n*.cst
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+.env
+
+# Streamlit
+.streamlit/
+
+# Data (Ignore large zips and docs, keep the active app files)
+*.zip
+*.docx
+geoportal_densidade_demografica/
+geoportal_distrito_municipal_v2/
+geoportal_indice_paulista_vulnerabilidadesocial/
+geoportal_setor_censitario_2022/
+geoportal_subprefeitura_v2/
+SIRGAS_SHP_logradouronbl/
+basedadosexecucao_schema.md
+passo_a_passo.md
+CLAUDE_CODE_HANDOFF.md
+mapa_preview.png
