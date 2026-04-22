@@ -145,12 +145,12 @@ try:
     st.sidebar.header("⚙️ Configuração do Mapa")
     
     metric_labels = {
-        'Vl_Orcado_Atualizado': '💵 Orçado (Planejado)',
-        'Vl_EmpenhadoLiquido':  '📋 Empenhado (Reservado)',
-        'Vl_Liquidado':         '✔️ Liquidado (Realizado)',
-        'Vl_Pago':              '💸 Pago (Quitado)',
-        'perc_executado':       '📊 % Execução (Pago/Orçado)',
-        'perc_empenhado':       '🏗️ % Empenho (Reserv./Orç.)',
+        'Vl_Orcado_Atualizado': 'Orçado (Planejado)',
+        'Vl_EmpenhadoLiquido':  'Empenhado (Reservado)',
+        'Vl_Liquidado':         'Liquidado (Realizado)',
+        'Vl_Pago':              'Pago (Quitado)',
+        'perc_executado':       '% Execução (Pago/Orçado)',
+        'perc_empenhado':       '% Empenho (Reserv./Orç.)',
     }
     
     selected_metric = st.sidebar.selectbox(
@@ -159,16 +159,16 @@ try:
         format_func=lambda x: metric_labels[x]
     )
 
-    st.sidebar.header("🔍 Filtros de Dotação")
+    st.sidebar.header("Filtros de Dotação")
     
-    with st.sidebar.expander("📍 Filtros Estruturais", expanded=True):
+    with st.sidebar.expander("Filtros Estruturais", expanded=True):
         functions = sorted(df_raw['Ds_Funcao'].unique().tolist())
         selected_funcoes = st.multiselect("Função de Governo", options=functions, placeholder="Todas as funções")
         
         organs = sorted(df_raw['Sigla_Orgao'].unique().tolist())
         selected_orgaos = st.multiselect("Órgão Responsável", options=organs, placeholder="Todos os órgãos")
         
-    with st.sidebar.expander("💰 Filtros Contábeis", expanded=False):
+    with st.sidebar.expander("Filtros Contábeis", expanded=False):
         groups = sorted(df_raw['Ds_Grupo'].unique().tolist())
         selected_grupos = st.multiselect("Grupo de Despesa", options=groups, placeholder="Todos os grupos")
         
@@ -245,7 +245,7 @@ try:
                 else:
                     scaling_factor = 1
                     unit_label = "R$"
-                color_palette = 'Viridis' # Accessible sequential palette
+                color_palette = 'YlGnBu' # Accessible sequential palette (Valid ColorBrewer code)
                 legend_title = f"{metric_labels[selected_metric]} ({unit_label})"
             
             # Create a scaled column for the map legend
