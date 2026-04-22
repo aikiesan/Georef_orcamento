@@ -117,7 +117,13 @@ st.markdown("#### São Paulo - Distribuição Espacial de Recursos por Subprefei
 st.divider()
 
 # --- SIDEBAR: ENTRADA DE DADOS ---
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/1/11/Brasao_da_cidade_de_Sao_Paulo.svg", width=100)
+# Using a more reliable way to display the logo or a text fallback to avoid ERR_BLOCKED_BY_CLIENT
+st.sidebar.markdown("""
+    <div style='text-align: center;'>
+        <h1 style='color: #cc0000; margin-bottom: 0;'>PMSP</h1>
+        <p style='font-size: 0.8rem; color: gray;'>Orçamento Georreferenciado</p>
+    </div>
+""", unsafe_allow_html=True)
 st.sidebar.header("📁 Fonte de Dados")
 uploaded_file = st.sidebar.file_uploader("Substituir base Excel (.xlsx)", type=["xlsx"], help="Faça upload de uma nova extração do SOF.")
 
