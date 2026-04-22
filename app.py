@@ -145,10 +145,12 @@ try:
     st.sidebar.header("⚙️ Configuração do Mapa")
     
     metric_labels = {
-        'Vl_Orcado_Atualizado': 'Orçado Atualizado',
-        'Vl_EmpenhadoLiquido':  'Empenhado Líquido',
-        'Vl_Liquidado':         'Liquidado',
-        'Vl_Pago':              'Pago',
+        'Vl_Orcado_Atualizado': '💵 Orçado (Planejado)',
+        'Vl_EmpenhadoLiquido':  '📋 Empenhado (Reservado)',
+        'Vl_Liquidado':         '✔️ Liquidado (Realizado)',
+        'Vl_Pago':              '💸 Pago (Quitado)',
+        'perc_executado':       '📊 % Execução (Pago/Orçado)',
+        'perc_empenhado':       '🏗️ % Empenho (Reserv./Orç.)',
     }
     
     selected_metric = st.sidebar.selectbox(
@@ -196,6 +198,14 @@ try:
         n_dotacoes          =('Cd_Dotacao_Id',          'count'),
     ).reset_index()
 
+    # Calculate Relative Performance Metrics
+    # We use a small epsilon or fillna to avoid division by zero
+    agg['perc_executado'] = (agg['Vl_Pago'] / agg['Vl_Orcado_Atualizado']).fillna(0) * 100
+    agg['perc_empenhado'] = (agg['Vl_EmpenhadoLiquido'] / agg['Vl_Orcado_Atualizado']).fillna(0) * 100
+    
+    # Cap percentages at 100% for cleaner visualization unless they are significantly higher
+    # agg['perc_executado'] = agg['perc_executado'].clip(upper=100)
+
     gdf = gdf_base[['nm_subpref', 'geometry', 'sg_subpref', 'nm_regiao_', 'nm_regiao0']].merge(
         agg, on='nm_subpref', how='left'
     ).fillna(0)
@@ -215,22 +225,33 @@ try:
     with tab_mapa:
         col_map, col_spacer = st.columns([1, 0.01])
         with col_map:
-            # Determine scaling for the legend
-            max_val = gdf[selected_metric].max()
-            if max_val >= 1e9:
-                scaling_factor = 1e9
-                unit_label = "Bi R$"
-            elif max_val >= 1e6:
-                scaling_factor = 1e6
-                unit_label = "Mi R$"
-            else:
+            # Determine scaling and color palette
+            is_percentage = "perc_" in selected_metric
+            
+            if is_percentage:
                 scaling_factor = 1
-                unit_label = "R$"
+                unit_label = "%"
+                color_palette = 'RdYlGn' # Red-Yellow-Green (good for performance)
+                max_map_val = gdf[selected_metric].max() if gdf[selected_metric].max() > 0 else 100
+                legend_title = f"{metric_labels[selected_metric]}"
+            else:
+                max_val = gdf[selected_metric].max()
+                if max_val >= 1e9:
+                    scaling_factor = 1e9
+                    unit_label = "Bi R$"
+                elif max_val >= 1e6:
+                    scaling_factor = 1e6
+                    unit_label = "Mi R$"
+                else:
+                    scaling_factor = 1
+                    unit_label = "R$"
+                color_palette = 'Viridis' # Accessible sequential palette
+                legend_title = f"{metric_labels[selected_metric]} ({unit_label})"
             
             # Create a scaled column for the map legend
             gdf['metric_scaled'] = gdf[selected_metric] / scaling_factor
             
-            st.markdown(f"**Distribuição Espacial:** Valores em `{unit_label}`")
+            st.markdown(f"**Distribuição Espacial:** Visualizando `{metric_labels[selected_metric]}`")
             
             # Map Rendering
             bounds = gdf.total_bounds
@@ -240,34 +261,30 @@ try:
             m = folium.Map(location=[center_lat, center_lon], tiles="CartoDB positron", zoom_control=True)
             m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
-            # Improved Choropleth with clean legend
+            # Improved Choropleth with accessible palette
             cp = folium.Choropleth(
                 geo_data=gdf.__geo_interface__,
                 data=gdf,
                 columns=['nm_subpref', 'metric_scaled'],
                 key_on='feature.properties.nm_subpref',
-                fill_color='YlOrRd',
+                fill_color=color_palette,
                 fill_opacity=0.8,
                 line_opacity=0.4,
-                legend_name=f"{metric_labels[selected_metric]} ({unit_label})",
+                legend_name=legend_title,
                 nan_fill_color='#fdfdfd',
                 highlight=True
             ).add_to(m)
 
-            # Move and style the legend to prevent overlapping/cluttering
-            # Note: Folium legends are SVG elements, we can try to nudge them slightly via JS if needed, 
-            # but usually scaling the numbers is 90% of the fix.
-
+            # Tooltip
             folium.GeoJson(
                 gdf,
                 style_function=lambda x: {'fillColor': '#ffffff00', 'color': '#ffffff00', 'weight': 0},
                 tooltip=folium.GeoJsonTooltip(
-                    fields=['nm_subpref', 'Vl_Orcado_Atualizado', 'Vl_EmpenhadoLiquido', 'Vl_Liquidado', 'Vl_Pago', 'n_dotacoes'],
-                    aliases=['Subprefeitura:', 'Orçado (R$):', 'Empenhado (R$):', 'Liquidado (R$):', 'Pago (R$):', 'Nº Dotações:'],
+                    fields=['nm_subpref', 'Vl_Orcado_Atualizado', 'Vl_EmpenhadoLiquido', 'Vl_Liquidado', 'Vl_Pago', 'perc_executado', 'n_dotacoes'],
+                    aliases=['Subprefeitura:', 'Orçado (R$):', 'Empenhado (R$):', 'Liquidado (R$):', 'Pago (R$):', 'Execução (%):', 'Nº Dotações:'],
                     localize=True,
                     labels=True,
                     sticky=True,
-                    # Format numbers in tooltips with thousands separators
                     style="font-family: sans-serif; font-size: 13px; color: #333; background-color: white; border: 1px solid #ddd; padding: 10px;"
                 )
             ).add_to(m)
@@ -287,19 +304,21 @@ try:
                 y='nm_subpref', 
                 orientation='h',
                 text=selected_metric,
-                labels={selected_metric: 'Valor (R$)', 'nm_subpref': ''},
+                labels={selected_metric: 'Valor', 'nm_subpref': ''},
                 color=selected_metric,
-                color_continuous_scale="YlOrRd"
+                color_continuous_scale=color_palette
             )
-            fig.update_traces(
-                texttemplate='R$ %{x:,.3s}', 
-                textposition='auto',
-                hovertemplate='%{y}<br>R$ %{x:,.2f}<extra></extra>'
-            )
+            
+            if is_percentage:
+                fig.update_traces(texttemplate='%{x:.1f}%', textposition='outside')
+                fig.update_layout(xaxis_ticksuffix='%')
+            else:
+                fig.update_traces(texttemplate='R$ %{x:,.3s}', textposition='auto')
+                
             fig.update_layout(
                 yaxis={'categoryorder':'total ascending'},
                 plot_bgcolor='rgba(0,0,0,0)',
-                xaxis_visible=False,
+                xaxis_visible=not is_percentage,
                 coloraxis_showscale=False,
                 margin=dict(l=0, r=0, t=10, b=0),
                 height=450
@@ -313,8 +332,11 @@ try:
             # Format display dataframe safely
             def brl_formatter(x): return f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             
-            for col in list(metric_labels.keys()):
+            for col in ['Vl_Orcado_Atualizado', 'Vl_EmpenhadoLiquido', 'Vl_Liquidado', 'Vl_Pago']:
                 display_df[col] = display_df[col].apply(brl_formatter)
+            
+            display_df['perc_executado'] = display_df['perc_executado'].apply(lambda x: f"{x:.1f}%")
+            display_df['perc_empenhado'] = display_df['perc_empenhado'].apply(lambda x: f"{x:.1f}%")
                 
             display_df = display_df.rename(columns={
                 'nm_subpref': 'Subprefeitura',
@@ -322,10 +344,11 @@ try:
                 'Vl_Orcado_Atualizado': 'Orçado',
                 'Vl_EmpenhadoLiquido': 'Empenhado',
                 'Vl_Liquidado': 'Liquidado',
-                'Vl_Pago': 'Pago'
+                'Vl_Pago': 'Pago',
+                'perc_executado': '% Exec.',
+                'perc_empenhado': '% Emp.'
             })
             
-            # Use original data for sorting but display formatted dataframe
             st.dataframe(
                 display_df.sort_values(by='Subprefeitura', key=lambda col: agg.sort_values(by=selected_metric, ascending=False)['nm_subpref']), 
                 use_container_width=True, 
